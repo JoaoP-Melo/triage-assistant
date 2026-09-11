@@ -1,0 +1,5 @@
+fastapi
+pytest
+sqlalchemy
+alembic
+dotenv
