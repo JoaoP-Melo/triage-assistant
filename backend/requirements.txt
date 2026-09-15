@@ -2,5 +2,11 @@ fastapi
 pytest
 sqlalchemy
 alembic
-dotenv
+python-dotenv
 psycopg[binary]
+bcrypt
+pyjwt
+email-validator
+ruff
+taskipy
+uvicorn[standard]
