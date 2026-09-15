@@ -3,3 +3,4 @@ pytest
 sqlalchemy
 alembic
 dotenv
+psycopg[binary]
