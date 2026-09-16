@@ -2,7 +2,9 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class RegisterRequest(BaseModel):
-    name: str = Field(..., min_length=2, max_length=150, description="Nome completo do paciente")
+    name: str = Field(
+        ..., min_length=2, max_length=150, description="Nome completo do paciente"
+    )
     email: EmailStr = Field(..., description="E-mail único de acesso")
     password1: str = Field(..., min_length=8, description="Senha de acesso")
     password2: str = Field(..., min_length=8, description="Confirmação da senha")
@@ -28,3 +30,12 @@ class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+
+class RefreshResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class LogoutResponse(BaseModel):
+    message: str = Field(default="Sessão encerrada com sucesso")

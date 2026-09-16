@@ -1,15 +1,19 @@
-from datetime import datetime, timedelta, timezone
-import hashlib
+from datetime import UTC, datetime, timedelta
 import re
 import secrets
-from typing import Any, Tuple
+from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.auth.models import AuthSession, User
 from app.auth.schemas import LoginRequest, RegisterRequest
-from app.core.security import create_access_token, hash_password, verify_password
+from app.core.security import (
+    create_access_token,
+    hash_password,
+    hash_token,
+    verify_password,
+)
 
 
 def validate_strong_password(password: str) -> None:
@@ -82,7 +86,7 @@ def register_user(db: Session, payload: RegisterRequest) -> dict[str, str]:
     return {"message": "Conta criada com sucesso"}
 
 
-def login_user(db: Session, payload: LoginRequest) -> Tuple[dict[str, Any], str]:
+def login_user(db: Session, payload: LoginRequest) -> tuple[dict[str, Any], str]:
     """Regras de negócio para o login do usuário:
 
     - Verifica existência do usuário, status ativo e correspondência do hash de senha
@@ -91,7 +95,11 @@ def login_user(db: Session, payload: LoginRequest) -> Tuple[dict[str, Any], str]
     - Retorna a tupla (dados_da_resposta, refresh_token_puro)
     """
     user = db.query(User).filter(User.email == payload.email).first()
-    if not user or not user.is_active or not verify_password(payload.password, user.hashed_password):
+    if (
+        not user
+        or not user.is_active
+        or not verify_password(payload.password, user.hashed_password)
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Credenciais inválidas.",
@@ -105,10 +113,10 @@ def login_user(db: Session, payload: LoginRequest) -> Tuple[dict[str, Any], str]
 
     # 2. Refresh Token opaco
     raw_refresh_token = secrets.token_urlsafe(32)
-    refresh_token_hash = hashlib.sha256(raw_refresh_token.encode("utf-8")).hexdigest()
+    refresh_token_hash = hash_token(raw_refresh_token)
 
     # 3. Persiste a sessão em auth_sessions
-    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+    expires_at = datetime.now(UTC) + timedelta(days=7)
     session = AuthSession(
         user_id=user.id,
         refresh_token_hash=refresh_token_hash,
@@ -128,3 +136,107 @@ def login_user(db: Session, payload: LoginRequest) -> Tuple[dict[str, Any], str]
     }
 
     return response_data, raw_refresh_token
+
+
+def refresh_session(
+    db: Session, refresh_token: str | None
+) -> tuple[dict[str, Any], str]:
+    """Regras de negócio para renovação de sessão (Refresh Token Rotation):
+
+    - Valida a presença do refresh token no cookie
+    - Localiza sessão válida e ativa em auth_sessions pelo hash SHA-256
+    - Valida status do usuário proprietário da sessão
+    - Executa rotação: invalida a sessão atual (is_revoked=True) e cria uma nova
+    - Emite novo Access Token (15 min) e novo Refresh Token opaco (7 dias)
+    - Retorna a tupla (dados_da_resposta, novo_refresh_token_puro)
+    """
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token inválido ou expirado.",
+        )
+
+    token_hash = hash_token(refresh_token)
+    now = datetime.now(UTC)
+
+    session = (
+        db.query(AuthSession)
+        .filter(
+            AuthSession.refresh_token_hash == token_hash,
+            AuthSession.is_revoked.is_(False),
+            AuthSession.expires_at > now,
+        )
+        .first()
+    )
+
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token inválido",
+        )
+
+    user = (
+        db.query(User)
+        .filter(User.id == session.user_id, User.is_active.is_(True))
+        .first()
+    )
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token inválido",
+        )
+
+    # 1. Rotação do Refresh Token: invalida a sessão anterior
+    session.is_revoked = True
+
+    # 2. Emissão do novo Access Token JWT (15 minutos)
+    new_access_token = create_access_token(
+        data={"sub": str(user.id), "role": user.role},
+        expires_delta=timedelta(minutes=15),
+    )
+
+    # 3. Emissão e persistência do novo Refresh Token opaco (7 dias)
+    new_raw_refresh_token = secrets.token_urlsafe(32)
+    new_refresh_token_hash = hash_token(new_raw_refresh_token)
+    new_expires_at = datetime.now(UTC) + timedelta(days=7)
+
+    new_session = AuthSession(
+        user_id=user.id,
+        refresh_token_hash=new_refresh_token_hash,
+        is_revoked=False,
+        expires_at=new_expires_at,
+    )
+    db.add(new_session)
+    db.commit()
+
+    response_data = {
+        "access_token": new_access_token,
+        "token_type": "bearer",
+    }
+
+    return response_data, new_raw_refresh_token
+
+
+def logout_user(db: Session, refresh_token: str | None) -> dict[str, str]:
+    """Regras de negócio para o encerramento de sessão (logout):
+
+    - Caso não exista refresh token informado, considera a sessão já finalizada
+    - Localiza a sessão em auth_sessions pelo hash SHA-256
+    - Revoga a sessão logicamente (is_revoked=True) preservando histórico de auditoria
+    - Retorna mensagem padronizada e segura
+    """
+    if not refresh_token:
+        return {"message": "Sessão encerrada com sucesso"}
+
+    token_hash = hash_token(refresh_token)
+    session = (
+        db.query(AuthSession)
+        .filter(AuthSession.refresh_token_hash == token_hash)
+        .first()
+    )
+
+    if session and not session.is_revoked:
+        session.is_revoked = True
+        db.commit()
+
+    return {"message": "Sessão encerrada com sucesso"}

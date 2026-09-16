@@ -40,3 +40,7 @@ test = "pytest -vv"
 lint = "ruff check ."
 format = "ruff format "
 fix = "ruff check --fix"
+
+[tool.pyrefly]
+search-path = ["."]
+python-interpreter = "../.venv/Scripts/python.exe"

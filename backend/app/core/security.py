@@ -1,16 +1,29 @@
+from datetime import UTC, datetime, timedelta
+import hashlib
 import os
-from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Any
 
 import bcrypt
-import jwt
 from dotenv import load_dotenv
+import jwt
 
 load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+
+
+def hash_token(token: str) -> str:
+    """Gera o hash SHA-256 de um token opaco (ex.: refresh token).
+
+    Args:
+        token: Token em texto puro a ser hasheado.
+
+    Returns:
+        String hexadecimal com o digest SHA-256 do token.
+    """
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 def hash_password(password: str) -> str:
@@ -30,7 +43,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def create_access_token(
     data: dict[str, Any],
-    expires_delta: Optional[timedelta] = None,
+    expires_delta: timedelta | None = None,
 ) -> str:
     """Gera um JWT de acesso assinado com claims padrão e expiração padrão de 15 minutos.
 
@@ -42,7 +55,7 @@ def create_access_token(
         Token JWT assinado em formato string.
     """
     to_encode = data.copy()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     if expires_delta is not None:
         expire = now + expires_delta
