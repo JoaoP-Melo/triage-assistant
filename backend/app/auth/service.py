@@ -7,7 +7,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.auth.models import AuthSession, User
-from app.auth.schemas import LoginRequest, RegisterRequest
+from app.auth.schemas import LoginRequest, RegisterDoctorRequest, RegisterRequest
 from app.core.security import (
     create_access_token,
     hash_password,
@@ -46,36 +46,38 @@ def validate_strong_password(password: str) -> None:
         )
 
 
-def register_user(db: Session, payload: RegisterRequest) -> dict[str, str]:
-    """Regras de negócio para o cadastro de pacientes:
-
-    - Verifica se as senhas são idênticas
-    - Aplica a validação de política de senha forte
-    - Verifica unicidade do e-mail
-    - Gera o hash seguro da senha
-    - Persiste o usuário com role='patient' fixo
-    """
-    if payload.password1 != payload.password2:
+def _create_user(
+    db: Session,
+    name: str,
+    email: str,
+    password1: str,
+    password2: str,
+    role: str,
+    specialization: str | None = None,
+) -> User:
+    """Função interna compartilhada para validação e criação de usuários."""
+    if password1 != password2:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="As senhas informadas não coincidem.",
         )
 
-    validate_strong_password(payload.password1)
+    validate_strong_password(password1)
 
-    existing_user = db.query(User).filter(User.email == payload.email).first()
+    existing_user = db.query(User).filter(User.email == email).first()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="E-mail já cadastrado.",
         )
 
-    hashed_pw = hash_password(payload.password1)
+    hashed_pw = hash_password(password1)
     new_user = User(
-        full_name=payload.name,
-        email=payload.email,
+        full_name=name,
+        email=email,
         hashed_password=hashed_pw,
-        role="patient",
+        role=role,
+        specialization=specialization,
         is_active=True,
     )
 
@@ -83,7 +85,52 @@ def register_user(db: Session, payload: RegisterRequest) -> dict[str, str]:
     db.commit()
     db.refresh(new_user)
 
+    return new_user
+
+
+def register_user(db: Session, payload: RegisterRequest) -> dict[str, str]:
+    """Regras de negócio para o cadastro de pacientes:
+
+    - Reaproveita validações em _create_user
+    - Persiste o usuário com role='patient' fixo
+    """
+    _create_user(
+        db=db,
+        name=payload.name,
+        email=payload.email,
+        password1=payload.password1,
+        password2=payload.password2,
+        role="patient",
+    )
+
     return {"message": "Conta criada com sucesso"}
+
+
+def register_doctor(db: Session, payload: RegisterDoctorRequest) -> dict[str, str]:
+    """Regras de negócio para o cadastro de médicos:
+
+    - Valida se a especialização é informada e válida (não vazia)
+    - Reaproveita validações de e-mail e senha em _create_user
+    - Persiste o usuário com role='doctor' fixo
+    """
+    specialization = payload.specialization.strip() if payload.specialization else ""
+    if not specialization or len(specialization) < 3:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A especialização é obrigatória e deve ter no mínimo 3 caracteres.",
+        )
+
+    _create_user(
+        db=db,
+        name=payload.name,
+        email=payload.email,
+        password1=payload.password1,
+        password2=payload.password2,
+        role="doctor",
+        specialization=specialization,
+    )
+
+    return {"message": "Conta de médico criada com sucesso"}
 
 
 def login_user(db: Session, payload: LoginRequest) -> tuple[dict[str, Any], str]:

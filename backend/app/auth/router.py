@@ -6,6 +6,7 @@ from app.auth.schemas import (
     LoginResponse,
     LogoutResponse,
     RefreshResponse,
+    RegisterDoctorRequest,
     RegisterRequest,
     RegisterResponse,
 )
@@ -13,6 +14,7 @@ from app.auth.service import (
     login_user,
     logout_user,
     refresh_session,
+    register_doctor,
     register_user,
 )
 from app.core.database import get_db
@@ -33,6 +35,23 @@ def register(
     """Recebe a requisição de cadastro de paciente e orquestra a chamada para a camada de serviço."""
 
     result = register_user(db=db, payload=payload)
+
+    return RegisterResponse(**result)
+
+
+@router.post(
+    "/register/doctor",
+    response_model=RegisterResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Cadastra um novo médico",
+)
+def register_doctor_endpoint(
+    payload: RegisterDoctorRequest,
+    db: Session = Depends(get_db),
+) -> RegisterResponse:
+    """Recebe a requisição de cadastro de médico e orquestra a chamada para a camada de serviço."""
+
+    result = register_doctor(db=db, payload=payload)
 
     return RegisterResponse(**result)
 

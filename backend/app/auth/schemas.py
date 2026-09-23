@@ -14,6 +14,18 @@ class RegisterResponse(BaseModel):
     message: str = Field(default="Conta criada com sucesso")
 
 
+class RegisterDoctorRequest(BaseModel):
+    name: str = Field(
+        ..., min_length=2, max_length=150, description="Nome completo do médico"
+    )
+    email: EmailStr = Field(..., description="E-mail único de acesso")
+    password1: str = Field(..., min_length=8, description="Senha de acesso")
+    password2: str = Field(..., min_length=8, description="Confirmação da senha")
+    specialization: str = Field(
+        ..., min_length=3, max_length=100, description="Especialidade médica"
+    )
+
+
 class LoginRequest(BaseModel):
     email: EmailStr = Field(..., description="E-mail cadastrado")
     password: str = Field(..., description="Senha de acesso")
