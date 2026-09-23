@@ -6,7 +6,7 @@ import os
 from dotenv import load_dotenv
 
 from app.core.database import Base
-import app.auth.model  # Import models for Alembic autogenerate
+import app.auth.models
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 
