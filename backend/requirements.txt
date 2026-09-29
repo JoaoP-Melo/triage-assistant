@@ -11,3 +11,4 @@ ruff
 taskipy
 uvicorn[standard]
 httpx2
+pymongo

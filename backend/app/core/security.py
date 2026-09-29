@@ -5,6 +5,8 @@ from typing import Any
 
 import bcrypt
 from dotenv import load_dotenv
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 import jwt
 
 load_dotenv()
@@ -82,3 +84,51 @@ def decode_token(token: str) -> dict[str, Any]:
         jwt.InvalidTokenError: Se o token for inválido ou a assinatura não conferir.
     """
     return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
+
+oauth2_scheme = HTTPBearer(auto_error=False)
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(oauth2_scheme),
+) -> dict[str, Any]:
+    """Extrai e valida o token JWT do header Authorization: Bearer <token>.
+
+    Retorna um dicionário contendo os dados do usuário (ex: user_id, role).
+    Lança HTTPException 401 caso o token esteja ausente, expirado ou inválido.
+    """
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token de acesso ausente.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token = credentials.credentials
+    try:
+        payload = decode_token(token)
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token de acesso expirado.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token de acesso inválido.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user_id = payload.get("sub") or payload.get("user_id")
+    role = payload.get("role")
+
+    if not user_id or not role:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token com payload inválido.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return {"user_id": str(user_id), "role": str(role), **payload}
+
