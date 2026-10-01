@@ -20,12 +20,11 @@ interface RequestOptions extends Omit<RequestInit, 'body'> {
 }
 
 export class ApiError extends Error {
-  constructor(
-    public readonly status: number,
-    message: string,
-  ) {
-    super(message)
-    this.name = 'ApiError'
+  public readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
   }
 }
 
@@ -38,7 +37,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   }
 
   if (accessToken) {
-    ;(headers as Record<string, string>)['Authorization'] = `Bearer ${accessToken}`
+    ; (headers as Record<string, string>)['Authorization'] = `Bearer ${accessToken}`
   }
 
   const response = await fetch(`${API_URL}${endpoint}`, {
@@ -56,7 +55,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     } catch {
       // mantém a mensagem padrão
     }
-    throw new ApiError(response.status, detail)
+    throw new ApiError(detail, response.status)
   }
 
   const text = await response.text()
