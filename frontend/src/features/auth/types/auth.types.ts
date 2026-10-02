@@ -5,6 +5,16 @@ export interface RegisterPayload {
   password2: string
 }
 
+export type RegisterPatientRequest = RegisterPayload
+
+export interface RegisterDoctorRequest {
+  name: string
+  email: string
+  password1: string
+  password2: string
+  specialization: string
+}
+
 export interface LoginPayload {
   email: string
   password: string

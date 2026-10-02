@@ -3,14 +3,17 @@ import { Link, useNavigate } from 'react-router-dom'
 import { AlertMessage } from '../../../components/ui/AlertMessage'
 import { Button } from '../../../components/ui/Button'
 import { InputField } from '../../../components/ui/InputField'
-import { register } from '../services/auth.service'
+import * as authService from '../services/auth.service'
 import { ApiError } from '../../../services/api'
+
+type RoleType = 'patient' | 'doctor'
 
 interface FormState {
   name: string
   email: string
   password1: string
   password2: string
+  specialization: string
 }
 
 interface FormErrors {
@@ -18,9 +21,10 @@ interface FormErrors {
   email?: string
   password1?: string
   password2?: string
+  specialization?: string
 }
 
-function validate(values: FormState): FormErrors {
+function validate(values: FormState, role: RoleType): FormErrors {
   const errors: FormErrors = {}
   if (!values.name.trim() || values.name.trim().length < 2) {
     errors.name = 'Nome deve ter pelo menos 2 caracteres.'
@@ -40,17 +44,26 @@ function validate(values: FormState): FormErrors {
   } else if (values.password1 !== values.password2) {
     errors.password2 = 'As senhas não coincidem.'
   }
+  if (role === 'doctor') {
+    if (!values.specialization.trim()) {
+      errors.specialization = 'Especialização é obrigatória.'
+    } else if (values.specialization.trim().length < 3) {
+      errors.specialization = 'A especialização deve ter no mínimo 3 caracteres.'
+    }
+  }
   return errors
 }
 
 export function RegisterForm() {
   const navigate = useNavigate()
 
+  const [role, setRole] = useState<RoleType>('patient')
   const [values, setValues] = useState<FormState>({
     name: '',
     email: '',
     password1: '',
     password2: '',
+    specialization: '',
   })
   const [errors, setErrors] = useState<FormErrors>({})
   const [apiError, setApiError] = useState<string | null>(null)
@@ -65,9 +78,16 @@ export function RegisterForm() {
     setApiError(null)
   }
 
+  function handleRoleChange(newRole: RoleType) {
+    if (newRole === role) return
+    setRole(newRole)
+    setApiError(null)
+    setErrors((prev) => ({ ...prev, specialization: undefined }))
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const validationErrors = validate(values)
+    const validationErrors = validate(values, role)
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors)
       return
@@ -77,12 +97,22 @@ export function RegisterForm() {
     setApiError(null)
 
     try {
-      await register({
-        name: values.name,
-        email: values.email,
-        password1: values.password1,
-        password2: values.password2,
-      })
+      if (role === 'patient') {
+        await authService.registerPatient({
+          name: values.name.trim(),
+          email: values.email.trim(),
+          password1: values.password1,
+          password2: values.password2,
+        })
+      } else {
+        await authService.registerDoctor({
+          name: values.name.trim(),
+          email: values.email.trim(),
+          password1: values.password1,
+          password2: values.password2,
+          specialization: values.specialization.trim(),
+        })
+      }
       navigate('/login')
     } catch (err) {
       if (err instanceof ApiError) {
@@ -100,19 +130,49 @@ export function RegisterForm() {
       <h1 className="auth-form__title">Criar conta</h1>
       <p className="auth-form__subtitle">Preencha os dados para se cadastrar</p>
 
+      <div className="role-selector" role="group" aria-label="Perfil de cadastro">
+        <button
+          type="button"
+          className={`role-selector__btn${role === 'patient' ? ' role-selector__btn--active' : ''}`}
+          onClick={() => handleRoleChange('patient')}
+        >
+          Paciente
+        </button>
+        <button
+          type="button"
+          className={`role-selector__btn${role === 'doctor' ? ' role-selector__btn--active' : ''}`}
+          onClick={() => handleRoleChange('doctor')}
+        >
+          Médico
+        </button>
+      </div>
+
       {apiError && <AlertMessage message={apiError} type="error" />}
 
       <InputField
         id="register-name"
-        label="Nome completo"
+        label={role === 'doctor' ? 'Nome completo do médico' : 'Nome completo'}
         type="text"
         name="name"
         value={values.name}
         onChange={handleChange}
         error={errors.name}
         autoComplete="name"
-        placeholder="Seu nome"
+        placeholder={role === 'doctor' ? 'Dr(a). Seu Nome' : 'Seu nome'}
       />
+
+      {role === 'doctor' && (
+        <InputField
+          id="register-specialization"
+          label="Especialização médica"
+          type="text"
+          name="specialization"
+          value={values.specialization}
+          onChange={handleChange}
+          error={errors.specialization}
+          placeholder="Ex.: Cardiologia, Clínica Geral"
+        />
+      )}
 
       <InputField
         id="register-email"

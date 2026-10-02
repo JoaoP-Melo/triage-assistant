@@ -4,12 +4,21 @@ import type {
   LoginResponse,
   LogoutResponse,
   RefreshResponse,
+  RegisterDoctorRequest,
   RegisterPayload,
   RegisterResponse,
 } from '../types/auth.types'
 
 export async function register(payload: RegisterPayload): Promise<RegisterResponse> {
   return apiClient.post<RegisterResponse>('/auth/register', payload)
+}
+
+export const registerPatient = register
+
+export async function registerDoctor(
+  payload: RegisterDoctorRequest
+): Promise<RegisterResponse> {
+  return apiClient.post<RegisterResponse>('/auth/register/doctor', payload)
 }
 
 export async function login(payload: LoginPayload): Promise<LoginResponse> {
