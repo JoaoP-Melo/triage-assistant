@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, sessionmaker
 load_dotenv()
 
 # Obtém a URL do banco de dados de teste (com fallback caso não esteja configurado)
-TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
+TEST_DATABASE_URL = os.getenv("DATABASE_URL")
 
 engine = create_engine(TEST_DATABASE_URL)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

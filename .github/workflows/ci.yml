@@ -1,0 +1,97 @@
+name: CI - Testes e Build
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  backend:
+    name: Backend - Testes
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Criar arquivos .env
+        env:
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          ALGORITHM: ${{ vars.ALGORITHM }}
+          ACCESS_TOKEN_EXPIRE_MINUTES: ${{ vars.ACCESS_TOKEN_EXPIRE_MINUTES }}
+
+          MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
+          MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
+          MONGODB_URL: ${{ secrets.MONGODB_URL }}
+
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+
+        run: |
+          cat > .env << EOF
+          POSTGRES_USER=$POSTGRES_USER
+          POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+          POSTGRES_DB=$POSTGRES_DB
+          EOF
+
+          cat > backend/.env << EOF
+          DATABASE_URL=$DATABASE_URL
+          POSTGRES_USER=$POSTGRES_USER
+          POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+          POSTGRES_DB=$POSTGRES_DB
+          TEST_DATABASE_URL=$TEST_DATABASE_URL
+          SECRET_KEY=$SECRET_KEY
+          ALGORITHM=$ALGORITHM
+          ACCESS_TOKEN_EXPIRE_MINUTES=$ACCESS_TOKEN_EXPIRE_MINUTES
+          MONGODB_USERNAME=$MONGODB_USERNAME
+          MONGODB_PASSWORD=$MONGODB_PASSWORD
+          MONGODB_URL=$MONGODB_URL
+          EOF
+
+          cat > frontend/.env << EOF
+          VITE_API_URL=$VITE_API_URL
+          EOF
+
+      - name: Subir containers
+        run: docker compose up -d --build
+
+      - name: Verificar containers
+        run: docker compose ps
+
+      - name: Executar testes
+        run: docker compose exec -T backend pytest
+
+      - name: Derrubar containers
+        if: always()
+        run: docker compose down -v
+
+  frontend:
+    name: Frontend - Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependências
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build
+        working-directory: frontend
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+        run: npm run build
