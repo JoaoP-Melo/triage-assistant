@@ -31,11 +31,21 @@ export function HomePage() {
 
       <main className="home-main">
         <div className="home-welcome">
-          <div className="home-welcome__icon" aria-hidden="true">✅</div>
-          <h1 className="home-welcome__title">Autenticado com sucesso!</h1>
+          <div className="home-welcome__icon" aria-hidden="true">🩺</div>
+          <h1 className="home-welcome__title">Portal do Paciente</h1>
           <p className="home-welcome__subtitle">
-            Você está na área autenticada do sistema. Novas funcionalidades serão disponibilizadas em breve.
+            Relate seus sintomas para passar pelo sistema inteligente de classificação e direcionamento médico prioritário.
           </p>
+          <div style={{ marginTop: 'var(--space-6)' }}>
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={() => navigate('/triage')}
+              style={{ padding: '0.875rem 2rem', fontSize: 'var(--font-size-base)' }}
+            >
+              Iniciar Triagem
+            </button>
+          </div>
         </div>
       </main>
     </div>

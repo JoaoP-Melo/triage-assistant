@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
 
 from app.triage.constants import PRIMARY_SYMPTOMS
@@ -22,6 +23,7 @@ class TriageSubmitRequest(BaseModel):
     description: str = Field(
         ...,
         min_length=1,
+        max_length=2000,
         description="Descrição detalhada em texto livre.",
     )
 
@@ -49,3 +51,4 @@ class TriageSubmitResponse(BaseModel):
     assigned_specialty: str
     urgency_level: str
     status: str
+    created_at: datetime

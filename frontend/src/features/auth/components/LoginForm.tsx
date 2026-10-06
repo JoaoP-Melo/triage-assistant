@@ -5,6 +5,7 @@ import { Button } from '../../../components/ui/Button'
 import { InputField } from '../../../components/ui/InputField'
 import { login } from '../services/auth.service'
 import { ApiError } from '../../../services/api'
+import { useAuth } from '../context/AuthContext'
 
 interface FormState {
   email: string
@@ -31,6 +32,7 @@ function validate(values: FormState): FormErrors {
 
 export function LoginForm() {
   const navigate = useNavigate()
+  const { loginUser } = useAuth()
 
   const [values, setValues] = useState<FormState>({ email: '', password: '' })
   const [errors, setErrors] = useState<FormErrors>({})
@@ -58,7 +60,8 @@ export function LoginForm() {
     setApiError(null)
 
     try {
-      await login({ email: values.email, password: values.password })
+      const response = await login({ email: values.email, password: values.password })
+      loginUser(response)
       navigate('/home')
     } catch (err) {
       if (err instanceof ApiError) {

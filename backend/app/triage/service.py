@@ -73,4 +73,5 @@ def submit_triage(
         "assigned_specialty": triage_result["assigned_specialty"],
         "urgency_level": triage_result["urgency_level"],
         "status": "WAITING",
+        "created_at": ticket_doc["created_at"],
     }
