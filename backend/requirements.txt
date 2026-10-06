@@ -12,3 +12,7 @@ taskipy
 uvicorn[standard]
 httpx2
 pymongo
+scikit-learn
+xgboost
+joblib
+pandas

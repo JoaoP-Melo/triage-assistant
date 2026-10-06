@@ -1,14 +1,6 @@
-from typing import Any
 from pydantic import BaseModel, Field, field_validator
 
-PRIMARY_SYMPTOMS = [
-    "FEBRE",
-    "DOR_DE_CABECA",
-    "NAUSEA",
-    "TOSSE",
-    "FALTA_DE_AR",
-    "DOR_ABDOMINAL",
-]
+from app.triage.constants import PRIMARY_SYMPTOMS
 
 
 class TriageSubmitRequest(BaseModel):

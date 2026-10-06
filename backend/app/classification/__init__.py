@@ -1,1 +1,1 @@
- 
+"""Módulo de classificação."""

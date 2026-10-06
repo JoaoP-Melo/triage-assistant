@@ -1,0 +1,27 @@
+"""Constantes compartilhadas do módulo de triagem."""
+
+PRIMARY_SYMPTOMS: list[str] = [
+    "FEBRE",
+    "DOR_DE_CABECA",
+    "NAUSEA",
+    "TOSSE",
+    "DOR_ABDOMINAL",
+    "DOR_DE_GARGANTA",
+    "CONGESTAO_NASAL",
+    "DOR_DE_OUVIDO",
+    "ESPIRROS",
+    "COCEIRA",
+    "VERMELHIDAO_DA_PELE",
+    "MANCHAS_NA_PELE",
+    "INCHACO",
+    "DOR_LOCAL",
+    "FALTA_DE_AR",
+    "DOR_NO_PEITO",
+    "CHIADO_NO_PEITO",
+    "PALPITACAO",
+    "TONTURA",
+    "SUOR_EXCESSIVO",
+    "DIARREIA",
+    "DOR_MUSCULAR",
+    "CANSAÇO",
+]
