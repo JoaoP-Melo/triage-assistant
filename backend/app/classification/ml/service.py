@@ -9,9 +9,13 @@ import numpy as np
 from scipy.sparse import hstack
 from xgboost import XGBClassifier
 
+from app.classification.ia.service import classify_with_llm
+
 logger = logging.getLogger(__name__)
 
 ARTIFACTS_DIR = Path(__file__).resolve().parent / "artifacts"
+
+__all__ = ["get_ml_artifacts", "predict_triage_ml", "classify_with_llm"]
 
 # Cache em memória para carregar os artefatos apenas uma vez
 _ML_ARTIFACTS: dict[str, Any] | None = None

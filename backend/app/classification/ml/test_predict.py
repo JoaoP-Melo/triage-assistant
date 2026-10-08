@@ -24,7 +24,10 @@ for path in [str(PROJECT_ROOT), str(BACKEND_DIR)]:
     if path not in sys.path:
         sys.path.insert(0, path)
 
-from app.classification.ml.service import get_ml_artifacts, predict_triage_ml  # noqa: E402
+from app.classification.ml.service import (  # noqa: E402
+    get_ml_artifacts,
+    predict_triage_ml,
+)
 
 
 def run_prediction_test(sample: dict[str, Any] | None = None) -> dict[str, Any]:

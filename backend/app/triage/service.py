@@ -15,13 +15,15 @@ def submit_triage(
 ) -> dict[str, Any]:
     """Regra de negócio para submissão de triagem de sintomas de paciente.
 
+    Fluxo:
     1. Valida se o usuário tem role == 'patient' (RBAC).
-    2. Persiste o documento com status='WAITING' e triage_result=None.
-    3. Chama a função predict_triage(patient_input) de ML.
-       OBS: Quando a confiança for baixa (< 0.90), a função predict_triage internamente
-       chamará classify_with_llm (modules/assistente_ia/service.py:classify_with_llm).
-       Ambos são funções Python internas, não rotas HTTP.
-    4. Atualiza o documento no MongoDB com o resultado obtido.
+    2. Persiste o ticket inicial no MongoDB com status='WAITING' e triage_result=None.
+    3. Executa a classificação clínica via pipeline híbrido (app.classification.service):
+       - Tenta classificar via ML (XGBoost) com confiança mínima de 90%.
+       - Se confiança < 90% ou falha do ML: aciona automaticamente o fallback via
+         Assistente de IA (Groq LLM) em app.classification.ia.service.classify_with_llm.
+       Ambos são chamadas internas Python, sem rota HTTP exposta.
+    4. Atualiza o documento no MongoDB com o triage_result obtido.
     5. Retorna o JSON sanitizado com ticket_id, assigned_specialty, urgency_level e status.
     """
     if current_user.get("role") != "patient":
@@ -46,9 +48,8 @@ def submit_triage(
     insert_result = mongo_db["tickets"].insert_one(ticket_doc)
     ticket_id = str(insert_result.inserted_id)
 
-    # 3. Integração com ML (stub atual)
-    # Nota de arquitetura: no futuro, caso a predição retorne confiança baixa (< 0.90),
-    # o módulo de ML chamará internamente modules.assistente_ia.service.classify_with_llm.
+    # 3. Pipeline de classificação híbrido: ML (XGBoost) com fallback automático para IA (Groq).
+    # Se confiança >= 0.90 → resultado do XGBoost. Se < 0.90 ou falha → resultado do Groq LLM.
     ml_result = predict_triage(patient_input)
 
     # Formata o triage_result conforme especificação
