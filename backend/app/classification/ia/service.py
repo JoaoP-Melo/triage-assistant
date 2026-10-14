@@ -21,7 +21,6 @@ logger = logging.getLogger(__name__)
 
 # Configurações do provedor de IA (Groq via biblioteca OpenAI)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_BASE_URL = os.getenv("GROQ_BASE_URL")
 GROQ_MODEL = os.getenv("GROQ_MODEL")
 MAX_RETRIES = 3
 
@@ -156,12 +155,10 @@ def classify_with_llm(patient_input: dict[str, Any]) -> dict[str, Any]:
             reason="Chave GROQ_API_KEY não configurada no ambiente. Classificação direcionada para Clínica Geral (prioridade Média)."
         )
 
-    base_url = os.getenv("GROQ_BASE_URL") or GROQ_BASE_URL
     model = os.getenv("GROQ_MODEL") or GROQ_MODEL
 
     client = OpenAI(
         api_key=api_key.strip(),
-        base_url=base_url.strip(),
         timeout=15.0,
     )
 
