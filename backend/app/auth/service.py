@@ -154,7 +154,7 @@ def login_user(db: Session, payload: LoginRequest) -> tuple[dict[str, Any], str]
 
     # 1. Access Token (JWT - 15 minutos)
     access_token = create_access_token(
-        data={"sub": str(user.id), "role": user.role},
+        data={"sub": str(user.id), "role": user.role, "email": user.email.lower()},
         expires_delta=timedelta(minutes=15),
     )
 
@@ -238,7 +238,7 @@ def refresh_session(
 
     # 2. Emissão do novo Access Token JWT (15 minutos)
     new_access_token = create_access_token(
-        data={"sub": str(user.id), "role": user.role},
+        data={"sub": str(user.id), "role": user.role, "email": user.email.lower()},
         expires_delta=timedelta(minutes=15),
     )
 

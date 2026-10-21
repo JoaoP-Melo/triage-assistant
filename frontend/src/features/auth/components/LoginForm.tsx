@@ -62,7 +62,7 @@ export function LoginForm() {
     try {
       const response = await login({ email: values.email, password: values.password })
       loginUser(response)
-      navigate('/home')
+      navigate(response.user.role === 'doctor' ? '/doctor/queue' : '/home')
     } catch (err) {
       if (err instanceof ApiError) {
         setApiError(err.message)

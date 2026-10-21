@@ -52,3 +52,31 @@ class TriageSubmitResponse(BaseModel):
     urgency_level: str
     status: str
     created_at: datetime
+
+
+class PatientInputQueueItem(BaseModel):
+    perceived_severity: int = Field(..., description="Severidade percebida de 1 a 10")
+    symptom_duration_hours: float = Field(..., description="Duração dos sintomas em horas")
+    primary_symptoms: list[str] = Field(..., description="Sintomas primários informados")
+    description: str = Field(..., description="Descrição detalhada dos sintomas")
+
+
+class TriageQueueItem(BaseModel):
+    ticket_id: str
+    assigned_specialty: str
+    urgency_level: str
+    status: str
+    created_at: datetime
+    patient_input: PatientInputQueueItem
+
+
+class TriageQueueResponse(BaseModel):
+    items: list[TriageQueueItem]
+    total: int
+
+
+class TriageFinishResponse(BaseModel):
+    ticket_id: str
+    status: str
+
+

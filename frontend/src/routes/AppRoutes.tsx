@@ -4,6 +4,7 @@ import { RegisterPage } from '../features/auth/pages/RegisterPage'
 import { HomePage } from '../features/home/pages/HomePage'
 import { ProtectedRoute } from '../features/auth/components/ProtectedRoute'
 import { TriageFormPage } from '../modules/triage/pages/TriageFormPage'
+import { DoctorQueuePage } from '../modules/doctor/pages/DoctorQueuePage'
 
 export function AppRoutes() {
   return (
@@ -24,6 +25,16 @@ export function AppRoutes() {
         element={
           <ProtectedRoute role="patient">
             <TriageFormPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Fila de Atendimento Médico (protegido por role="doctor") */}
+      <Route
+        path="/doctor/queue"
+        element={
+          <ProtectedRoute role="doctor">
+            <DoctorQueuePage />
           </ProtectedRoute>
         }
       />
