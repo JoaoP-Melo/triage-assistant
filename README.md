@@ -203,3 +203,4 @@ O fluxo de `/auth/refresh` valida se o hash SHA-256 do token recebido já se enc
 [GitHub](https://github.com/JoaoP-Melo) · [LinkedIn](https://www.linkedin.com/in/SEU-PERFIL) · seu-email@exemplo.com
 
 Aberto a feedback e a oportunidades! Se curtiu o projeto, deixe uma ⭐.
+
