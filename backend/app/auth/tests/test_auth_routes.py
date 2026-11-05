@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from app.auth.models import AuthSession, User
 from app.core.security import hash_token, verify_password
 
-
 # ============================================================================
 # 1. POST /auth/register
 # ============================================================================
@@ -27,9 +26,7 @@ def test_register_patient_success(client: TestClient, db_session: Session) -> No
 
     # Verificações de segurança e banco
     user = (
-        db_session.query(User)
-        .filter(User.email == "novo_paciente@example.com")
-        .first()
+        db_session.query(User).filter(User.email == "novo_paciente@example.com").first()
     )
     assert user is not None
     assert user.role == "patient"

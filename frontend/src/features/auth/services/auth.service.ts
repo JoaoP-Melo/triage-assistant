@@ -1,4 +1,4 @@
-import { apiClient, setAccessToken } from '../../../services/api'
+import { ApiError, apiClient, setAccessToken } from '../../../services/api'
 import type {
   LoginPayload,
   LoginResponse,
@@ -28,9 +28,22 @@ export async function login(payload: LoginPayload): Promise<LoginResponse> {
 }
 
 export async function refreshToken(): Promise<RefreshResponse> {
-  const data = await apiClient.post<RefreshResponse>('/auth/refresh')
-  setAccessToken(data.access_token)
-  return data
+  try {
+    const data = await apiClient.post<RefreshResponse>('/auth/refresh')
+    setAccessToken(data.access_token)
+    return data
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      setAccessToken(null)
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('triage_user')
+        if (!window.location.pathname.startsWith('/login')) {
+          window.location.href = '/login'
+        }
+      }
+    }
+    throw error
+  }
 }
 
 export async function logout(): Promise<LogoutResponse> {

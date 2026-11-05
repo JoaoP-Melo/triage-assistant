@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+import logging
 import re
 import secrets
 from typing import Any
@@ -14,6 +15,8 @@ from app.core.security import (
     hash_token,
     verify_password,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def validate_strong_password(password: str) -> None:
@@ -186,15 +189,18 @@ def login_user(db: Session, payload: LoginRequest) -> tuple[dict[str, Any], str]
 
 
 def refresh_session(
-    db: Session, refresh_token: str | None
+    db: Session,
+    refresh_token: str | None,
+    client_ip: str | None = None,
 ) -> tuple[dict[str, Any], str]:
     """Regras de negócio para renovação de sessão (Refresh Token Rotation):
 
     - Valida a presença do refresh token no cookie
-    - Localiza sessão válida e ativa em auth_sessions pelo hash SHA-256
-    - Valida status do usuário proprietário da sessão
-    - Executa rotação: invalida a sessão atual (is_revoked=True) e cria uma nova
-    - Emite novo Access Token (15 min) e novo Refresh Token opaco (7 dias)
+    - Localiza sessão em auth_sessions pelo hash SHA-256
+    - Se a sessão já estiver revogada (reuso detectado):
+      Revoga em cascata todas as sessões ativas do usuário e registra log warning
+    - Se a sessão estiver expirada: retorna 401 genérico sem revogação em cascata
+    - Se a sessão for válida: executa rotação normal
     - Retorna a tupla (dados_da_resposta, novo_refresh_token_puro)
     """
     if not refresh_token:
@@ -204,15 +210,10 @@ def refresh_session(
         )
 
     token_hash = hash_token(refresh_token)
-    now = datetime.now(UTC)
 
     session = (
         db.query(AuthSession)
-        .filter(
-            AuthSession.refresh_token_hash == token_hash,
-            AuthSession.is_revoked.is_(False),
-            AuthSession.expires_at > now,
-        )
+        .filter(AuthSession.refresh_token_hash == token_hash)
         .first()
     )
 
@@ -220,6 +221,38 @@ def refresh_session(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token inválido",
+        )
+
+    if session.is_revoked:
+        # Reuso detectado: revoga TODAS as sessões ativas do mesmo usuário em query única
+        logger.warning(
+            "Reuso de refresh token detectado para user_id=%s a partir do IP=%s. Revogando todas as sessões ativas.",
+            session.user_id,
+            client_ip or "desconhecido",
+        )
+        db.query(AuthSession).filter(
+            AuthSession.user_id == session.user_id,
+            AuthSession.is_revoked.is_(False),
+        ).update({"is_revoked": True}, synchronize_session=False)
+        db.commit()
+
+        # Limitação de segurança: o access token JWT (15 min) continua válido até expirar.
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token inválido",
+            headers={
+                "Set-Cookie": "refresh_token=; Path=/auth; Max-Age=0; HttpOnly; Secure; SameSite=Strict"
+            },
+        )
+
+    now = datetime.now(UTC)
+    if session.expires_at <= now:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token inválido",
+            headers={
+                "Set-Cookie": "refresh_token=; Path=/auth; Max-Age=0; HttpOnly; Secure; SameSite=Strict"
+            },
         )
 
     user = (
@@ -231,6 +264,9 @@ def refresh_session(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token inválido",
+            headers={
+                "Set-Cookie": "refresh_token=; Path=/auth; Max-Age=0; HttpOnly; Secure; SameSite=Strict"
+            },
         )
 
     # 1. Rotação do Refresh Token: invalida a sessão anterior

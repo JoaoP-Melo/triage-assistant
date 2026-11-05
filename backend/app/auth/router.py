@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Cookie, Depends, Response, status
+from fastapi import APIRouter, Cookie, Depends, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app.auth.schemas import (
@@ -91,12 +91,16 @@ def login(
     summary="Renova o token de acesso via refresh token",
 )
 def refresh(
+    request: Request,
     response: Response,
     refresh_token: str | None = Cookie(default=None),
     db: Session = Depends(get_db),
 ) -> RefreshResponse:
     """Orquestra a renovação do access token e a rotação do refresh token via cookie seguro."""
-    data, new_refresh_token = refresh_session(db=db, refresh_token=refresh_token)
+    client_ip = request.client.host if request.client else "unknown"
+    data, new_refresh_token = refresh_session(
+        db=db, refresh_token=refresh_token, client_ip=client_ip
+    )
 
     response.set_cookie(
         key="refresh_token",
