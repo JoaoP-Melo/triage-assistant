@@ -48,7 +48,9 @@ def submit_triage_endpoint(
     summary="Fila de atendimentos abertos da especialidade do médico",
 )
 def get_triage_queue_endpoint(
-    limit: int = Query(default=20, ge=1, le=50, description="Quantidade máxima de itens a retornar"),
+    limit: int = Query(
+        default=20, ge=1, le=50, description="Quantidade máxima de itens a retornar"
+    ),
     offset: int = Query(default=0, ge=0, description="Deslocamento para paginação"),
     current_user: dict[str, Any] = Depends(get_current_user),
     pg_db: Session = Depends(get_db),
@@ -85,5 +87,3 @@ def finish_triage_endpoint(
         mongo_db=mongo_db,
     )
     return TriageFinishResponse(**result)
-
-

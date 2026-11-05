@@ -11,13 +11,15 @@ Valida regras de negócio de triagem de sintomas de pacientes:
 from __future__ import annotations
 
 import uuid
-import pytest
-from app.classification.service import predict_triage
 
+import pytest
+
+from app.classification.service import predict_triage
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. Entrada inválida → 422
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.parametrize(
     "override,desc",
@@ -52,6 +54,7 @@ def test_invalid_input_422(client, valid_payload, override, desc):
 # ─────────────────────────────────────────────────────────────────────────────
 # 2. Autenticação e RBAC
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def test_no_token_returns_401(client, valid_payload):
     """Requisição sem cabeçalho Authorization deve retornar 401."""
@@ -109,6 +112,7 @@ def test_user_id_from_jwt_not_body(valid_payload, client_factory):
 # 3. Rate limit → 429
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def test_rate_limit_returns_429(valid_payload, client_factory):
     """Quando rate limit for atingido via middleware/dependência de segurança → 429."""
     with client_factory(force_429=True) as c:
@@ -120,16 +124,19 @@ def test_rate_limit_returns_429(valid_payload, client_factory):
 # 4. Roteamento híbrido (ML XGBoost vs Fallback IA Groq via mocks)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.parametrize(
     "confidence,expected_processed_by",
     [
-        (0.90, "ML_XGBOOST"),   # exatamente no corte de 90% → ML
-        (0.9999, "ML_XGBOOST"), # alta confiança → ML
+        (0.90, "ML_XGBOOST"),  # exatamente no corte de 90% → ML
+        (0.9999, "ML_XGBOOST"),  # alta confiança → ML
         (0.8999, "AGENT_LLM"),  # abaixo de 90% → fallback IA
-        (0.50, "AGENT_LLM"),    # baixa confiança → fallback IA
+        (0.50, "AGENT_LLM"),  # baixa confiança → fallback IA
     ],
 )
-def test_hybrid_routing(valid_payload, mock_ml, client_factory, confidence, expected_processed_by):
+def test_hybrid_routing(
+    valid_payload, mock_ml, client_factory, confidence, expected_processed_by
+):
     """Verifica o roteamento híbrido com base no score de confiança do modelo."""
     ml_cfg = mock_ml(
         confidence=confidence,
@@ -143,7 +150,9 @@ def test_hybrid_routing(valid_payload, mock_ml, client_factory, confidence, expe
     mock.assert_called_once()
 
 
-def test_high_confidence_predict_triage_called_once(valid_payload, mock_ml, client_factory):
+def test_high_confidence_predict_triage_called_once(
+    valid_payload, mock_ml, client_factory
+):
     """Confidence ≥ 0.90: predict_triage chamado uma vez com payload íntegro."""
     ml_cfg = mock_ml(confidence=0.95)
     with client_factory(ml_cfg=ml_cfg) as c:
@@ -154,7 +163,10 @@ def test_high_confidence_predict_triage_called_once(valid_payload, mock_ml, clie
     mock.assert_called_once()
     called_input = mock.call_args[0][0]
     assert called_input["perceived_severity"] == valid_payload["perceived_severity"]
-    assert called_input["symptom_duration_hours"] == valid_payload["symptom_duration_hours"]
+    assert (
+        called_input["symptom_duration_hours"]
+        == valid_payload["symptom_duration_hours"]
+    )
     assert called_input["primary_symptoms"] == valid_payload["primary_symptoms"]
     assert called_input["description"] == valid_payload["description"]
 
@@ -175,7 +187,9 @@ def test_boundary_0_8999_uses_llm(valid_payload, mock_ml, client_factory):
     assert resp.status_code == 201
 
 
-def test_classification_service_hybrid_pipeline(valid_payload, mock_ml_service, mock_ia_service):
+def test_classification_service_hybrid_pipeline(
+    valid_payload, mock_ml_service, mock_ia_service
+):
     """Valida a lógica interna do classification/service.py usando mocks isolados de ML e IA:
     - Se ML tiver confiança >= 0.90, não aciona a IA.
     - Se ML tiver confiança < 0.90, aciona a IA.
@@ -211,6 +225,7 @@ def test_classification_service_hybrid_pipeline(valid_payload, mock_ml_service, 
 # ─────────────────────────────────────────────────────────────────────────────
 # 5. Tratamento de Exceções a Jusante
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.parametrize(
     "exc,desc",
@@ -261,6 +276,7 @@ def test_malformed_ia_output_uses_defaults(valid_payload, client_factory):
 # 6. Persistência no MongoDB do Docker Compose
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def test_ticket_persisted_with_waiting_status(valid_payload, client_factory):
     """Ticket é persistido no MongoDB real com status='WAITING' e timestamp created_at."""
     with client_factory() as c:
@@ -276,7 +292,9 @@ def test_ticket_persisted_with_waiting_status(valid_payload, client_factory):
     assert ticket["triage_result"] is not None
 
 
-def test_mongo_write_failure_returns_500_without_internal_details(valid_payload, client_factory):
+def test_mongo_write_failure_returns_500_without_internal_details(
+    valid_payload, client_factory
+):
     """Falha de escrita no MongoDB deve responder 500 sem expor mensagens internas da infraestrutura."""
     with client_factory(mongo_fail_write=True) as c:
         resp = c.post("/triage/submit", json=valid_payload)
@@ -289,7 +307,13 @@ def test_mongo_write_failure_returns_500_without_internal_details(valid_payload,
 # 7. Contrato de Resposta (TriageSubmitResponse)
 # ─────────────────────────────────────────────────────────────────────────────
 
-ALLOWED_RESPONSE_KEYS = {"ticket_id", "assigned_specialty", "urgency_level", "status", "created_at"}
+ALLOWED_RESPONSE_KEYS = {
+    "ticket_id",
+    "assigned_specialty",
+    "urgency_level",
+    "status",
+    "created_at",
+}
 FORBIDDEN_KEYS = {"llm_justification", "token_consumption", "confidence_score"}
 
 
@@ -307,7 +331,9 @@ def test_response_does_not_leak_internal_fields(valid_payload, client, forbidden
     resp = client.post("/triage/submit", json=valid_payload)
     assert resp.status_code == 201
     data = resp.json()
-    assert forbidden_key not in data, f"Campo proibido '{forbidden_key}' encontrado na resposta"
+    assert forbidden_key not in data, (
+        f"Campo proibido '{forbidden_key}' encontrado na resposta"
+    )
 
 
 def test_response_status_is_waiting(valid_payload, client):
@@ -336,6 +362,7 @@ def test_response_ticket_id_is_string(valid_payload, client):
 # 8. Repasse íntegro dos dados do paciente ao classificador
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def test_ml_receives_payload_unchanged(valid_payload, client):
     """predict_triage recebe exatamente os mesmos dados enviados pelo paciente."""
     resp = client.post("/triage/submit", json=valid_payload)
@@ -359,7 +386,9 @@ def test_ml_receives_payload_unchanged(valid_payload, client):
         ("description", "Dor leve persistente sem febre."),
     ],
 )
-def test_ml_receives_each_field_correctly(valid_payload, mock_ml, client_factory, field, value):
+def test_ml_receives_each_field_correctly(
+    valid_payload, mock_ml, client_factory, field, value
+):
     """Cada campo individual modificado é repassado ao classificador com integridade."""
     payload = {**valid_payload, field: value}
     with client_factory() as c:

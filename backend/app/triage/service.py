@@ -1,5 +1,5 @@
-import logging
 from datetime import UTC, datetime
+import logging
 from typing import Any
 
 from bson import ObjectId
@@ -155,7 +155,7 @@ def _resolve_doctor_profile(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro interno ao consultar o perfil médico.",
-        )
+        ) from exc
 
     if not user or user.role != "doctor":
         raise HTTPException(
@@ -170,7 +170,9 @@ def _resolve_doctor_profile(
         )
 
     spec_cleaned = user.specialization.strip().lower()
-    assigned_specialty = SPECIALTY_ALIASES.get(spec_cleaned) or user.specialization.strip().upper()
+    assigned_specialty = (
+        SPECIALTY_ALIASES.get(spec_cleaned) or user.specialization.strip().upper()
+    )
 
     if assigned_specialty not in VALID_SPECIALTIES:
         raise HTTPException(
@@ -213,7 +215,9 @@ def get_doctor_triage_queue(
        Pagina com limit/offset e projeta estritamente os campos permitidos.
     """
     # ── Etapa 1: Validação do Médico e Especialidade no PostgreSQL ──
-    _, assigned_specialty = _resolve_doctor_profile(current_user=current_user, pg_db=pg_db)
+    _, assigned_specialty = _resolve_doctor_profile(
+        current_user=current_user, pg_db=pg_db
+    )
 
     # ── Etapa 2: Consulta à Fila no MongoDB ──
     _ensure_mongo_index(mongo_db)
@@ -230,10 +234,33 @@ def get_doctor_triage_queue(
                 "urgency_rank": {
                     "$switch": {
                         "branches": [
-                            {"case": {"$eq": ["$triage_result.urgency_level", "EMERGENCIA"]}, "then": 1},
-                            {"case": {"$eq": ["$triage_result.urgency_level", "ALTA"]}, "then": 2},
-                            {"case": {"$eq": ["$triage_result.urgency_level", "MEDIA"]}, "then": 3},
-                            {"case": {"$eq": ["$triage_result.urgency_level", "BAIXA"]}, "then": 4},
+                            {
+                                "case": {
+                                    "$eq": [
+                                        "$triage_result.urgency_level",
+                                        "EMERGENCIA",
+                                    ]
+                                },
+                                "then": 1,
+                            },
+                            {
+                                "case": {
+                                    "$eq": ["$triage_result.urgency_level", "ALTA"]
+                                },
+                                "then": 2,
+                            },
+                            {
+                                "case": {
+                                    "$eq": ["$triage_result.urgency_level", "MEDIA"]
+                                },
+                                "then": 3,
+                            },
+                            {
+                                "case": {
+                                    "$eq": ["$triage_result.urgency_level", "BAIXA"]
+                                },
+                                "then": 4,
+                            },
                         ],
                         "default": 5,
                     }
@@ -275,7 +302,7 @@ def get_doctor_triage_queue(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro interno ao consultar a fila de atendimentos.",
-        )
+        ) from exc
 
     items: list[dict[str, Any]] = []
     total = 0
@@ -305,19 +332,21 @@ def finish_doctor_triage_ticket(
     2. PostgreSQL: Valida médico logado e obtém a especialidade via _resolve_doctor_profile.
     3. MongoDB: Atualização atômica combinando _id, status='WAITING' e assigned_specialty.
        Se nenhum documento casar, retorna 404 genérico (evita enumeração).
-    4. Atualiza exclusivamente: status='FINALIZED', finalized_at e finalized_by.
-    5. Retorna sanitizado { ticket_id, status }.
+    4. Atualiza exclusivamente: status='FINALIZED', finalized_at, finalized_by e finalized_by_name.
+    5. Retorna sanitizado { ticket_id, status, finalized_by_name, finalized_at }.
     """
     try:
         obj_id = ObjectId(ticket_id)
-    except (InvalidId, TypeError):
+    except (InvalidId, TypeError) as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Atendimento não encontrado ou indisponível.",
-        )
+        ) from exc
 
     # 1. Resolve médico e especialidade autorizada no PostgreSQL
-    doctor_user, assigned_specialty = _resolve_doctor_profile(current_user=current_user, pg_db=pg_db)
+    doctor_user, assigned_specialty = _resolve_doctor_profile(
+        current_user=current_user, pg_db=pg_db
+    )
 
     # 2. Atualização atômica no MongoDB
     filter_query = {
@@ -326,11 +355,13 @@ def finish_doctor_triage_ticket(
         "triage_result.assigned_specialty": assigned_specialty,
     }
 
+    finalized_at = datetime.now(UTC)
     update_query = {
         "$set": {
             "status": STATUS_FINALIZED,
-            "finalized_at": datetime.now(UTC),
+            "finalized_at": finalized_at,
             "finalized_by": str(doctor_user.id),
+            "finalized_by_name": doctor_user.full_name,
         }
     }
 
@@ -341,7 +372,7 @@ def finish_doctor_triage_ticket(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro interno ao finalizar o atendimento.",
-        )
+        ) from exc
 
     if result.matched_count == 0:
         raise HTTPException(
@@ -352,6 +383,6 @@ def finish_doctor_triage_ticket(
     return {
         "ticket_id": ticket_id,
         "status": STATUS_FINALIZED,
+        "finalized_by_name": doctor_user.full_name,
+        "finalized_at": finalized_at,
     }
-
-

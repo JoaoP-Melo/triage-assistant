@@ -24,5 +24,7 @@ export interface DoctorQueueResponse {
 export interface DoctorFinishResponse {
   ticket_id: string
   status: string
+  finalized_by_name?: string
+  finalized_at?: string
 }
 

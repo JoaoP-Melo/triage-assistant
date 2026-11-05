@@ -1,4 +1,5 @@
 from datetime import datetime
+
 from pydantic import BaseModel, Field, field_validator
 
 from app.triage.constants import PRIMARY_SYMPTOMS
@@ -56,8 +57,12 @@ class TriageSubmitResponse(BaseModel):
 
 class PatientInputQueueItem(BaseModel):
     perceived_severity: int = Field(..., description="Severidade percebida de 1 a 10")
-    symptom_duration_hours: float = Field(..., description="Duração dos sintomas em horas")
-    primary_symptoms: list[str] = Field(..., description="Sintomas primários informados")
+    symptom_duration_hours: float = Field(
+        ..., description="Duração dos sintomas em horas"
+    )
+    primary_symptoms: list[str] = Field(
+        ..., description="Sintomas primários informados"
+    )
     description: str = Field(..., description="Descrição detalhada dos sintomas")
 
 
@@ -78,5 +83,5 @@ class TriageQueueResponse(BaseModel):
 class TriageFinishResponse(BaseModel):
     ticket_id: str
     status: str
-
-
+    finalized_by_name: str
+    finalized_at: datetime
