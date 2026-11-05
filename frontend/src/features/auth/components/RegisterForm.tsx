@@ -116,7 +116,11 @@ export function RegisterForm() {
       navigate('/login')
     } catch (err) {
       if (err instanceof ApiError) {
-        setApiError(err.message)
+        if (err.status === 429) {
+          setApiError('Muitas tentativas. Tente novamente em alguns instantes.')
+        } else {
+          setApiError(err.message)
+        }
       } else {
         setApiError('Erro inesperado. Tente novamente.')
       }

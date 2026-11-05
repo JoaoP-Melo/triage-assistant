@@ -26,7 +26,10 @@ def predict_triage(patient_input: dict[str, Any]) -> dict[str, Any]:
 
         # Critério de corte de 90% (especificação 06-modulo-classification-ml)
         if confidence >= 0.90:
-            logger.info("Classificação finalizada via ML com alta confiança: %.2f%%", confidence * 100)
+            logger.info(
+                "Classificação finalizada via ML com alta confiança: %.2f%%",
+                confidence * 100,
+            )
             return ml_result
 
         logger.info(

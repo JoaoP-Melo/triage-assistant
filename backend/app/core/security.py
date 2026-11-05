@@ -15,6 +15,30 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
 
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY não configurada.")
+
+if len(SECRET_KEY) < 32:
+    raise RuntimeError("SECRET_KEY deve possuir pelo menos 32 caracteres.")
+
+ALLOWED_ALGORITHMS = {"HS256"}
+
+if ALGORITHM not in ALLOWED_ALGORITHMS:
+    raise RuntimeError("ALGORITHM inválido ou não permitido.")
+
+if not ACCESS_TOKEN_EXPIRE_MINUTES:
+    raise RuntimeError("ACCESS_TOKEN_EXPIRE_MINUTES não configurado.")
+
+try:
+    ACCESS_TOKEN_EXPIRE_MINUTES = int(ACCESS_TOKEN_EXPIRE_MINUTES)
+except ValueError:
+    raise RuntimeError(
+        "ACCESS_TOKEN_EXPIRE_MINUTES deve ser um número inteiro."
+    ) from None
+
+if ACCESS_TOKEN_EXPIRE_MINUTES <= 0:
+    raise RuntimeError("ACCESS_TOKEN_EXPIRE_MINUTES deve ser positivo.")
+
 
 def hash_token(token: str) -> str:
     """Gera o hash SHA-256 de um token opaco (ex.: refresh token).
@@ -107,18 +131,18 @@ def get_current_user(
     token = credentials.credentials
     try:
         payload = decode_token(token)
-    except jwt.ExpiredSignatureError:
+    except jwt.ExpiredSignatureError as err:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token de acesso expirado.",
             headers={"WWW-Authenticate": "Bearer"},
-        )
-    except jwt.InvalidTokenError:
+        ) from err
+    except jwt.InvalidTokenError as err:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token de acesso inválido.",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from err
 
     user_id = payload.get("sub") or payload.get("user_id")
     role = payload.get("role")
@@ -131,4 +155,3 @@ def get_current_user(
         )
 
     return {"user_id": str(user_id), "role": str(role), **payload}
-

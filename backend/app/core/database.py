@@ -1,8 +1,9 @@
 import os
+
 from dotenv import load_dotenv
+from pymongo import MongoClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
-from pymongo import MongoClient
 
 load_dotenv()
 
@@ -27,6 +28,7 @@ def get_db():
 
 client = MongoClient(MONGODB_URL)
 database = client[MONGODB_USERNAME]
+
 
 def get_mongo_db():
     return database

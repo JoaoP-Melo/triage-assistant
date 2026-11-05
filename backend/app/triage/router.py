@@ -1,10 +1,16 @@
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from pymongo.database import Database
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db, get_mongo_db
+from app.core.rate_limit import (
+    RATE_LIMIT_TRIAGE_QUEUE,
+    RATE_LIMIT_TRIAGE_SUBMIT,
+    get_user_or_ip,
+    limiter,
+)
 from app.core.security import get_current_user
 from app.triage.schemas import (
     TriageFinishResponse,
@@ -27,7 +33,9 @@ router = APIRouter(prefix="/triage", tags=["triage"])
     status_code=status.HTTP_201_CREATED,
     summary="Submissão de triagem de sintomas do paciente",
 )
+@limiter.limit(RATE_LIMIT_TRIAGE_SUBMIT, key_func=get_user_or_ip)
 def submit_triage_endpoint(
+    request: Request,
     payload: TriageSubmitRequest,
     current_user: dict[str, Any] = Depends(get_current_user),
     mongo_db: Database = Depends(get_mongo_db),
@@ -47,7 +55,9 @@ def submit_triage_endpoint(
     status_code=status.HTTP_200_OK,
     summary="Fila de atendimentos abertos da especialidade do médico",
 )
+@limiter.limit(RATE_LIMIT_TRIAGE_QUEUE, key_func=get_user_or_ip)
 def get_triage_queue_endpoint(
+    request: Request,
     limit: int = Query(
         default=20, ge=1, le=50, description="Quantidade máxima de itens a retornar"
     ),
@@ -74,6 +84,7 @@ def get_triage_queue_endpoint(
     summary="Finaliza um atendimento aberto da especialidade médica",
 )
 def finish_triage_endpoint(
+    request: Request,
     ticket_id: str,
     current_user: dict[str, Any] = Depends(get_current_user),
     pg_db: Session = Depends(get_db),

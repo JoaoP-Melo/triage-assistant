@@ -87,10 +87,14 @@ def _derive_urgency(severity: float) -> str:
 
 def load_dataset(data_path: str | Path | None = None) -> pd.DataFrame:
     """Carrega e higieniza dataset de treino a partir de arquivo CSV."""
-    target_path = Path(data_path).resolve() if data_path else DEFAULT_DATA_PATH.resolve()
+    target_path = (
+        Path(data_path).resolve() if data_path else DEFAULT_DATA_PATH.resolve()
+    )
 
     if not target_path.exists():
-        raise FileNotFoundError(f"Arquivo de dados de treino não encontrado: {target_path}")
+        raise FileNotFoundError(
+            f"Arquivo de dados de treino não encontrado: {target_path}"
+        )
 
     logger.info("Carregando dataset de dados a partir de %s", target_path)
     df = pd.read_csv(target_path)
@@ -102,8 +106,12 @@ def load_dataset(data_path: str | Path | None = None) -> pd.DataFrame:
         )
 
     # Normalização de severidade e duração
-    df["perceived_severity"] = pd.to_numeric(df["perceived_severity"], errors="coerce").fillna(5.0)
-    df["symptom_duration_hours"] = pd.to_numeric(df["symptom_duration_hours"], errors="coerce").fillna(24.0)
+    df["perceived_severity"] = pd.to_numeric(
+        df["perceived_severity"], errors="coerce"
+    ).fillna(5.0)
+    df["symptom_duration_hours"] = pd.to_numeric(
+        df["symptom_duration_hours"], errors="coerce"
+    ).fillna(24.0)
     df["description"] = df["description"].fillna("").astype(str)
 
     # Normalização de especialidade
@@ -115,10 +123,14 @@ def load_dataset(data_path: str | Path | None = None) -> pd.DataFrame:
 
     # Deriva urgency_level caso a coluna não exista no CSV
     if "urgency_level" not in df.columns:
-        logger.info("Coluna 'urgency_level' não encontrada no CSV. Derivando conforme severidade percebida.")
+        logger.info(
+            "Coluna 'urgency_level' não encontrada no CSV. Derivando conforme severidade percebida."
+        )
         df["urgency_level"] = df["perceived_severity"].apply(_derive_urgency)
     else:
-        df["urgency_level"] = df["urgency_level"].fillna("MEDIA").astype(str).str.strip().str.upper()
+        df["urgency_level"] = (
+            df["urgency_level"].fillna("MEDIA").astype(str).str.strip().str.upper()
+        )
 
     # Normalização de sintomas primários para lista de strings padronizadas
     def _normalize_symptoms(symptoms: Any) -> list[str]:
@@ -145,17 +157,23 @@ def _transform_features(
     description_vectorizer: TfidfVectorizer,
 ) -> Any:
     """Aplica as transformações de feature engineering gerando a matriz X_final esparsa."""
-    severity_features = severity_scaler.transform(df[["perceived_severity"]].values.astype(float))
-    duration_features = duration_scaler.transform(df[["symptom_duration_hours"]].values.astype(float))
+    severity_features = severity_scaler.transform(
+        df[["perceived_severity"]].values.astype(float)
+    )
+    duration_features = duration_scaler.transform(
+        df[["symptom_duration_hours"]].values.astype(float)
+    )
     symptoms_features = symptoms_binarizer.transform(df["primary_symptoms"].tolist())
     description_features = description_vectorizer.transform(df["description"].tolist())
 
-    return hstack([
-        severity_features,
-        duration_features,
-        symptoms_features,
-        description_features,
-    ]).tocsr()
+    return hstack(
+        [
+            severity_features,
+            duration_features,
+            symptoms_features,
+            description_features,
+        ]
+    ).tocsr()
 
 
 def fit_pipeline(
@@ -166,30 +184,46 @@ def fit_pipeline(
     """Ajusta o pipeline completo de Feature Engineering e treina o XGBClassifier."""
     logger.info("Ajustando scalers, binarizer e vectorizer no dataset...")
     severity_scaler = MinMaxScaler()
-    severity_features = severity_scaler.fit_transform(df[["perceived_severity"]].values.astype(float))
+    severity_features = severity_scaler.fit_transform(
+        df[["perceived_severity"]].values.astype(float)
+    )
 
     duration_scaler = StandardScaler()
-    duration_features = duration_scaler.fit_transform(df[["symptom_duration_hours"]].values.astype(float))
+    duration_features = duration_scaler.fit_transform(
+        df[["symptom_duration_hours"]].values.astype(float)
+    )
 
     symptoms_binarizer = MultiLabelBinarizer(classes=primary_symptoms)
-    symptoms_features = symptoms_binarizer.fit_transform(df["primary_symptoms"].tolist())
+    symptoms_features = symptoms_binarizer.fit_transform(
+        df["primary_symptoms"].tolist()
+    )
 
     description_vectorizer = TfidfVectorizer()
-    description_features = description_vectorizer.fit_transform(df["description"].tolist())
+    description_features = description_vectorizer.fit_transform(
+        df["description"].tolist()
+    )
 
-    x_final = hstack([
-        severity_features,
-        duration_features,
-        symptoms_features,
-        description_features,
-    ]).tocsr()
+    x_final = hstack(
+        [
+            severity_features,
+            duration_features,
+            symptoms_features,
+            description_features,
+        ]
+    ).tocsr()
 
-    target_combined = df["assigned_specialty"].astype(str) + "|" + df["urgency_level"].astype(str)
+    target_combined = (
+        df["assigned_specialty"].astype(str) + "|" + df["urgency_level"].astype(str)
+    )
     label_encoder = LabelEncoder()
     y_final = label_encoder.fit_transform(target_combined)
 
     num_classes = len(label_encoder.classes_)
-    logger.info("Treinando XGBClassifier com %d classes e random_state=%d...", num_classes, random_state)
+    logger.info(
+        "Treinando XGBClassifier com %d classes e random_state=%d...",
+        num_classes,
+        random_state,
+    )
 
     model = XGBClassifier(
         objective="multi:softprob",
@@ -228,7 +262,9 @@ def evaluate(
         return None
 
     logger.info("Executando split treino/teste (80%% treino / 20%% teste)...")
-    target_combined = df["assigned_specialty"].astype(str) + "|" + df["urgency_level"].astype(str)
+    target_combined = (
+        df["assigned_specialty"].astype(str) + "|" + df["urgency_level"].astype(str)
+    )
 
     class_counts = target_combined.value_counts()
     can_stratify = (class_counts >= 2).all()
@@ -241,7 +277,9 @@ def evaluate(
         stratify=stratify,
     )
 
-    artifacts = fit_pipeline(train_df, primary_symptoms=primary_symptoms, random_state=random_state)
+    artifacts = fit_pipeline(
+        train_df, primary_symptoms=primary_symptoms, random_state=random_state
+    )
 
     x_test = _transform_features(
         test_df,
@@ -251,13 +289,19 @@ def evaluate(
         description_vectorizer=artifacts["description_vectorizer"],
     )
 
-    y_test_combined = test_df["assigned_specialty"].astype(str) + "|" + test_df["urgency_level"].astype(str)
+    y_test_combined = (
+        test_df["assigned_specialty"].astype(str)
+        + "|"
+        + test_df["urgency_level"].astype(str)
+    )
     label_encoder: LabelEncoder = artifacts["label_encoder"]
 
     known_classes = set(label_encoder.classes_)
     valid_mask = y_test_combined.isin(known_classes)
     if not valid_mask.all():
-        logger.warning("Algumas classes no teste não estavam presentes no conjunto de treino e serão desconsideradas.")
+        logger.warning(
+            "Algumas classes no teste não estavam presentes no conjunto de treino e serão desconsideradas."
+        )
         test_df = test_df[valid_mask]
         x_test = x_test[valid_mask.values]
         y_test_combined = y_test_combined[valid_mask]
@@ -283,7 +327,9 @@ def export_artifacts(artifacts: dict[str, Any], output_dir: Path | str) -> None:
     joblib.dump(artifacts["severity_scaler"], out_path / "severity_scaler.joblib")
     joblib.dump(artifacts["duration_scaler"], out_path / "duration_scaler.joblib")
     joblib.dump(artifacts["symptoms_binarizer"], out_path / "symptoms_binarizer.joblib")
-    joblib.dump(artifacts["description_vectorizer"], out_path / "description_vectorizer.joblib")
+    joblib.dump(
+        artifacts["description_vectorizer"], out_path / "description_vectorizer.joblib"
+    )
     joblib.dump(artifacts["label_encoder"], out_path / "label_encoder.joblib")
 
     model_json_path = out_path / "model.json"
@@ -330,7 +376,9 @@ def main(argv: list[str] | None = None) -> None:
     evaluate(df, primary_symptoms=PRIMARY_SYMPTOMS, random_state=args.random_state)
 
     logger.info("Treinando pipeline final nos dados completos...")
-    artifacts = fit_pipeline(df, primary_symptoms=PRIMARY_SYMPTOMS, random_state=args.random_state)
+    artifacts = fit_pipeline(
+        df, primary_symptoms=PRIMARY_SYMPTOMS, random_state=args.random_state
+    )
 
     export_artifacts(artifacts, output_dir=args.output_dir)
     logger.info("=== Treinamento e Exportação Concluídos com Sucesso ===")

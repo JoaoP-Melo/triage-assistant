@@ -51,6 +51,7 @@ jobs:
           MONGODB_USERNAME=$MONGODB_USERNAME
           MONGODB_PASSWORD=$MONGODB_PASSWORD
           MONGODB_URL=$MONGODB_URL
+          RATE_LIMIT_ENABLED=false
           EOF
 
           cat > frontend/.env << EOF

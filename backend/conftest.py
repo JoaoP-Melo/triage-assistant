@@ -1,4 +1,6 @@
 import os
+
+os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from typing import Any, Generator

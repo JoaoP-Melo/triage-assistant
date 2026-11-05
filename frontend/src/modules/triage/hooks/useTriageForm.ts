@@ -134,9 +134,7 @@ export function useTriageForm() {
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 429) {
-          setError(
-            'Limite de requisições atingido. Por favor, aguarde alguns instantes antes de enviar uma nova triagem.'
-          )
+          setError('Muitas tentativas. Tente novamente em alguns instantes.')
         } else if (err.status === 403) {
           setError('Acesso negado. Apenas pacientes podem submeter triagens.')
         } else {

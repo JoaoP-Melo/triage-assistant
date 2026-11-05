@@ -82,7 +82,9 @@ def predict_triage_ml(patient_input: dict[str, Any]) -> dict[str, Any]:
     symptoms_feat = artifacts["symptoms_binarizer"].transform([primary_symptoms])
     description_feat = artifacts["description_vectorizer"].transform([description])
 
-    x_final = hstack([severity_feat, duration_feat, symptoms_feat, description_feat]).tocsr()
+    x_final = hstack(
+        [severity_feat, duration_feat, symptoms_feat, description_feat]
+    ).tocsr()
 
     probabilities = artifacts["model"].predict_proba(x_final)[0]
     best_idx = int(np.argmax(probabilities))

@@ -18,6 +18,12 @@ from app.auth.service import (
     register_user,
 )
 from app.core.database import get_db
+from app.core.rate_limit import (
+    RATE_LIMIT_LOGIN,
+    RATE_LIMIT_REFRESH,
+    RATE_LIMIT_REGISTER,
+    limiter,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -28,14 +34,14 @@ router = APIRouter(prefix="/auth", tags=["auth"])
     status_code=status.HTTP_201_CREATED,
     summary="Cadastra um novo paciente",
 )
+@limiter.limit(RATE_LIMIT_REGISTER)
 def register(
+    request: Request,
     payload: RegisterRequest,
     db: Session = Depends(get_db),
 ) -> RegisterResponse:
     """Recebe a requisição de cadastro de paciente e orquestra a chamada para a camada de serviço."""
-
     result = register_user(db=db, payload=payload)
-
     return RegisterResponse(**result)
 
 
@@ -45,14 +51,14 @@ def register(
     status_code=status.HTTP_201_CREATED,
     summary="Cadastra um novo médico",
 )
+@limiter.limit(RATE_LIMIT_REGISTER)
 def register_doctor_endpoint(
+    request: Request,
     payload: RegisterDoctorRequest,
     db: Session = Depends(get_db),
 ) -> RegisterResponse:
     """Recebe a requisição de cadastro de médico e orquestra a chamada para a camada de serviço."""
-
     result = register_doctor(db=db, payload=payload)
-
     return RegisterResponse(**result)
 
 
@@ -62,7 +68,9 @@ def register_doctor_endpoint(
     status_code=status.HTTP_200_OK,
     summary="Realiza o login do usuário",
 )
+@limiter.limit(RATE_LIMIT_LOGIN)
 def login(
+    request: Request,
     payload: LoginRequest,
     response: Response,
     db: Session = Depends(get_db),
@@ -90,6 +98,7 @@ def login(
     status_code=status.HTTP_200_OK,
     summary="Renova o token de acesso via refresh token",
 )
+@limiter.limit(RATE_LIMIT_REFRESH)
 def refresh(
     request: Request,
     response: Response,

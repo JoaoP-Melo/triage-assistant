@@ -65,7 +65,11 @@ export function LoginForm() {
       navigate(response.user.role === 'doctor' ? '/doctor/queue' : '/home')
     } catch (err) {
       if (err instanceof ApiError) {
-        setApiError(err.message)
+        if (err.status === 429) {
+          setApiError('Muitas tentativas. Tente novamente em alguns instantes.')
+        } else {
+          setApiError(err.message)
+        }
       } else {
         setApiError('Erro inesperado. Tente novamente.')
       }

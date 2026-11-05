@@ -51,14 +51,16 @@ def run_prediction_test(sample: dict[str, Any] | None = None) -> dict[str, Any]:
 
     print(" Artefatos carregados com sucesso!")
     print(f" - Quantidade de classes mapeadas: {len(classes)}")
-    print(f" - Classes disponiveis: {', '.join(classes[:5])}... (+ {len(classes) - 5} outras)")
+    print(
+        f" - Classes disponiveis: {', '.join(classes[:5])}... (+ {len(classes) - 5} outras)"
+    )
 
     # 2. Dados de entrada do paciente
     print("\n[2/3] Dados do caso clinico de teste:")
     print(f" - Severidade percebida (0-10): {sample['perceived_severity']}")
     print(f" - Duracao dos sintomas: {sample['symptom_duration_hours']} horas")
     print(f" - Sintomas primarios: {', '.join(sample['primary_symptoms'])}")
-    print(f" - Descricao: \"{sample['description']}\"")
+    print(f' - Descricao: "{sample["description"]}"')
 
     # 3. Execução da predição
     print("\n[3/3] Executando predicao...")
