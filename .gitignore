@@ -6,4 +6,3 @@ __pycache__/
 node_modules/
 .env.local
 dist/
-spec_module/
